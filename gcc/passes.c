@@ -244,6 +244,7 @@ finish_optimization_passes (void)
   char *name;
 
   timevar_push (TV_DUMP);
+#if !defined(DISABLE_RTL_PASSES)
   if (profile_arc_flag || flag_test_coverage || flag_branch_probabilities)
     {
       dump_file = dump_begin (pass_profile.pass.static_pass_number, NULL);
@@ -261,6 +262,7 @@ finish_optimization_passes (void)
           dump_end (pass_combine.pass.static_pass_number, dump_file);
 	}
     }
+#endif
 
   /* Do whatever is necessary to finish printing the graphs.  */
   if (graph_dump_format != no_graph)
@@ -515,6 +517,9 @@ init_optimization_passes (void)
   NEXT_PASS (pass_lower_cf);
   NEXT_PASS (pass_refactor_eh);
   NEXT_PASS (pass_lower_eh);
+#if defined(DISABLE_RTL_PASSES)
+  NEXT_PASS (pass_simp_cil_early);
+#endif
   NEXT_PASS (pass_build_cfg);
   NEXT_PASS (pass_lower_complex_O0);
   NEXT_PASS (pass_lower_vector);
@@ -709,6 +714,20 @@ init_optimization_passes (void)
 
   NEXT_PASS (pass_warn_function_noreturn);
   NEXT_PASS (pass_free_datastructures);
+#if defined(DISABLE_RTL_PASSES)
+  NEXT_PASS (pass_bb_layout);
+  NEXT_PASS (pass_gimple_to_cil);
+  NEXT_PASS (pass_missing_protos);
+  NEXT_PASS (pass_cil_peephole);
+  NEXT_PASS (pass_remove_convs);
+  NEXT_PASS (pass_remove_temps);
+  NEXT_PASS (pass_remove_convs);
+  NEXT_PASS (pass_remove_temps);
+  NEXT_PASS (pass_simp_cond);
+  NEXT_PASS (pass_lower_cil);
+  NEXT_PASS (pass_emit_cil_vcg);
+  NEXT_PASS (pass_emit_cil);
+#else /* !defined(DISABLE_RTL_PASSES) */
   NEXT_PASS (pass_mudflap_2);
 
   NEXT_PASS (pass_free_cfg_annotations);
@@ -813,6 +832,7 @@ init_optimization_passes (void)
       NEXT_PASS (pass_df_finish);
     }
   NEXT_PASS (pass_clean_state);
+#endif /* DISABLE_RTL_PASSES */
   *p = NULL;
 
 #undef NEXT_PASS

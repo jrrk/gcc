@@ -64,10 +64,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "value-prof.h"
 #include "tree.h"
 #include "cfghooks.h"
-#include "tree-flow.h"
 #include "timevar.h"
 #include "cfgloop.h"
+#include "gimple.h"
 #include "tree-pass.h"
+#include "splay-tree.h"
 
 #include "profile.h"
 
@@ -267,6 +268,248 @@ get_exec_counts (void)
   return counts;
 }
 
+struct location_profile_info
+{
+  int exec_count;
+  splay_tree edges; /* destination:int -> count:int */
+};
+
+struct location_profile_info_file
+{
+  splay_tree locations; /* location:int -> location_profile_info */
+};
+
+static splay_tree location_profile_info_files = NULL; /* file_name : char* -> location_profile_info_file */
+
+static int
+splay_tree_compare_strings (splay_tree_key k1, splay_tree_key k2)
+{
+  int c = strcmp ((const char *) k1, (const char *) k2);
+  if (c < 0)
+    return -1;
+  else if (c > 0)
+    return 1;
+  else 
+    return 0;
+}
+
+void
+location_profile_info_init (void)
+{
+  if (!location_profile_info_files)
+    {
+      location_profile_info_files = splay_tree_new (splay_tree_compare_strings, NULL, NULL);
+    }
+}
+
+static struct location_profile_info_file *
+location_profile_info_get_file_info (const char *file)
+{
+  splay_tree_node node;
+  if (!location_profile_info_files)
+    {
+      return NULL;
+    }
+  node = splay_tree_lookup (location_profile_info_files, (splay_tree_key) file);
+  if (!node)
+    {
+      struct location_profile_info_file *ret = XNEW (struct location_profile_info_file);
+      char *key = xstrdup (file);
+      ret->locations = splay_tree_new (splay_tree_compare_ints, NULL, NULL);
+      node = splay_tree_insert (location_profile_info_files, (splay_tree_key) key, (splay_tree_value) ret);
+    }
+  return (struct location_profile_info_file *) node->value;
+}
+
+static struct location_profile_info *
+location_profile_info_file_get_location_info (struct location_profile_info_file *fi, int line)
+{
+  splay_tree_node node = splay_tree_lookup (fi->locations, (splay_tree_key) line);
+  if (!node)
+    {
+      struct location_profile_info *ret = XNEW (struct location_profile_info);
+      ret->exec_count = 0;
+      ret->edges = splay_tree_new (splay_tree_compare_ints, NULL, NULL);
+      node = splay_tree_insert (fi->locations, (splay_tree_key) line, (splay_tree_value) ret);
+    }
+  return (struct location_profile_info *) node->value;
+}
+
+static struct location_profile_info *
+location_profile_info_file_get_nearest_location_info (struct location_profile_info_file *fi, int line, int *used_line)
+{
+  splay_tree_node node = splay_tree_lookup (fi->locations, (splay_tree_key) line);
+  if (!node)
+    {
+      node = splay_tree_predecessor (fi->locations, (splay_tree_key) line);
+    }
+  if (!node)
+    {
+      if (used_line)
+        {
+          *used_line = -1;
+        }
+      return NULL;
+    }
+  if (used_line)
+    {
+      *used_line = (int) node->key;
+    }
+  return (struct location_profile_info *) node->value;
+}
+
+static int
+location_profile_info_get_nearest_count_info (struct location_profile_info *li, int line, int *used_line)
+{
+  splay_tree_node node = splay_tree_lookup (li->edges, (splay_tree_key) line);
+  if (!node)
+    {
+      node = splay_tree_predecessor (li->edges, (splay_tree_key) line);
+    }
+  if (!node)
+    {
+      if (used_line)
+        {
+          *used_line = -1;
+        }
+      return 0;
+    }
+  if (used_line)
+    {
+      *used_line = (int) node->key;
+    }
+  return (int) node->value;
+}
+
+void
+location_profile_info_add_edge_count (const char *file, int src_line, int dst_line, int count)
+{
+  struct location_profile_info_file *file_info = location_profile_info_get_file_info (file);
+  if (file_info) 
+    {
+      struct location_profile_info *location_info = location_profile_info_file_get_location_info (file_info, src_line);
+      int current_count;
+      splay_tree_node node = splay_tree_lookup (location_info->edges, (splay_tree_key) dst_line);
+      if (node)
+        {
+          current_count = (int) node->value;
+        }
+      else
+        {
+          current_count = 0;
+        }
+      splay_tree_insert (location_info->edges, (splay_tree_key) dst_line, (splay_tree_value) (current_count + count));
+    }
+}
+
+void
+location_profile_info_add_bb_exec_count (const char *file, int bb_line, int count)
+{
+  struct location_profile_info_file *file_info = location_profile_info_get_file_info (file);
+  if (file_info)
+    {
+      struct location_profile_info *location_info = location_profile_info_file_get_location_info (file_info, bb_line);
+      int current_count = location_info->exec_count;
+      location_info->exec_count = current_count + count;
+    }
+}
+
+static int 
+location_profile_info_dump_edge (splay_tree_node n, void *d)
+{
+  FILE *f = (FILE *) d;
+  int v = (int) n->value;
+  fprintf (f, "-> %x: %d\n", (int) n->key, v);
+  return 0;
+}
+
+static int 
+location_profile_info_dump_location (splay_tree_node n, void *d)
+{
+  FILE *f = (FILE *) d;
+  struct location_profile_info *v = (struct location_profile_info *) n->value;
+  fprintf (f, "%x\n", (int) n->key);
+  splay_tree_foreach (v->edges, location_profile_info_dump_edge, f);  
+  return 0;
+}
+
+static int 
+location_profile_info_dump_file (splay_tree_node n, void *d)
+{
+  FILE *f = (FILE *) d;
+  struct location_profile_info_file *v = (struct location_profile_info_file *) n->value;
+  fprintf (f, "File: '%s'\n", (const char *) n->key);
+  splay_tree_foreach (v->locations, location_profile_info_dump_location, f);  
+  return 0;
+}
+
+void
+location_profile_info_dump (FILE *f)
+{
+  splay_tree_foreach (location_profile_info_files, location_profile_info_dump_file, f);
+}
+
+static location_t 
+basic_block_get_location (basic_block bb)
+{
+  while (bb)
+    {
+      gimple_stmt_iterator gsi = gsi_start_bb (bb);
+
+      while (!gsi_end_p (gsi))
+	{
+	  if (gimple_has_location (gsi_stmt (gsi)))
+	    return gimple_location (gsi_stmt (gsi));
+
+	  gsi_next (&gsi);
+	}
+
+      if (single_succ_p (bb))
+	bb = single_succ_edge (bb)->dest;
+      else
+	return UNKNOWN_LOCATION;
+    }
+
+  return UNKNOWN_LOCATION;
+}
+
+static gcov_type
+get_edge_count_from_location_profile (edge e)
+{
+  location_t srcl = basic_block_get_location (e->src);
+  location_t destl = basic_block_get_location (e->dest);
+  struct location_profile_info_file *fi = location_profile_info_get_file_info (LOCATION_FILE (srcl));
+  if (fi)
+    {
+      int src_near;
+      struct location_profile_info *li = location_profile_info_file_get_nearest_location_info (fi, LOCATION_LINE (srcl), &src_near);
+      if (li)
+        {
+          int dst_near;
+          int count = location_profile_info_get_nearest_count_info (li, LOCATION_LINE (destl), &dst_near);
+
+          if (count == 0 && dst_near == src_near)
+            {
+              /* this is an edge wich appears in GCC but not in the trace
+                 file, it is interior to a basic block. Hence, its count
+                 must be equal to the exec count of the BB. */
+              count = li->exec_count;
+            }
+          
+          verbatim ("%s:%x(%x) -> %s:%x(%x) = %d", LOCATION_FILE (srcl), LOCATION_LINE (srcl), src_near, LOCATION_FILE (destl), LOCATION_LINE (destl), dst_near, count);
+          
+          return count;
+        }
+      else
+        {
+          return 0;
+        }
+    }
+  else
+    {
+      return 0;
+    }
+}
 
 static bool
 is_edge_inconsistent (VEC(edge,gc) *edges)
@@ -416,6 +659,10 @@ read_profile_edge_counts (gcov_type *exec_counts)
 			   bb->index, e->dest->index);
 		  }
 	      }
+            else if (location_profile_info_files)
+              {
+                e->count = get_edge_count_from_location_profile (e);
+              }
 	    else
 	      e->count = 0;
 
