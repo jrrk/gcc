@@ -129,6 +129,11 @@ extern void branch_prob (void);
 extern void end_branch_prob (void);
 extern void tree_register_profile_hooks (void);
 
+extern void location_profile_info_init (void);
+extern void location_profile_info_add_edge_count (const char *file, int src_line, int dst_line, int count);
+extern void location_profile_info_add_bb_exec_count (const char *file, int line, int count);
+extern void location_profile_info_dump (FILE *f);
+
 /* In tree-profile.c.  */
 extern struct profile_hooks tree_profile_hooks;
 
