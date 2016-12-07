@@ -163,6 +163,8 @@ target_modules = { module= qthreads; };
 target_modules = { module= rda; };
 target_modules = { module= libada; };
 target_modules = { module= libgomp; lib_path=.libs; };
+target_modules = { module= libgcc4net; lib_path=.; };
+target_modules = { module= libstd; };
 
 // These are (some of) the make targets to be done in each subdirectory.
 // Not all; these are the ones which don't have special options.
@@ -501,6 +503,7 @@ dependencies = { module=all-uudecode; on=all-build-texinfo; };
 // environment (e.g. on libstdc++).  By default target modules depend
 // on libgcc and newlib/libgloss.
 lang_env_dependencies = { module=gperf; cxx=true; };
+lang_env_dependencies = { module=libgcc4net; };
 lang_env_dependencies = { module=libjava; cxx=true; };
 lang_env_dependencies = { module=newlib; no_c=true; };
 lang_env_dependencies = { module=libgloss; no_c=true; };
@@ -509,6 +512,7 @@ lang_env_dependencies = { module=libgcc; no_gcc=true; no_c=true; };
 // built newlib on some targets (e.g. Cygwin).  It still needs
 // a dependency on libgcc for native targets to configure.
 lang_env_dependencies = { module=libiberty; no_c=true; };
+lang_env_dependencies = { module=libstd; };
 
 dependencies = { module=configure-target-boehm-gc; on=configure-target-qthreads; };
 dependencies = { module=configure-target-boehm-gc; on=all-target-libstdc++-v3; };
@@ -529,6 +533,7 @@ dependencies = { module=all-target-libobjc; on=all-target-libiberty; };
 dependencies = { module=all-target-libobjc; on=all-target-boehm-gc; };
 dependencies = { module=all-target-libstdc++-v3; on=all-target-libiberty; };
 dependencies = { module=configure-target-libstdc++-v3; on=configure-target-libgomp; };
+dependencies = { module=configure-target-libstd; on=all-target-libgcc4net; };
 
 // Target modules in the 'src' repository.
 lang_env_dependencies = { module=examples; };
