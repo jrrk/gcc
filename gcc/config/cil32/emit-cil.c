@@ -1500,11 +1500,16 @@ emit_cil_stmt (FILE *file, const_cil_stmt stmt)
 	    tree type = TYPE_MAIN_VARIANT (TREE_TYPE (cil_cst (stmt)));
 	    char string[100];
 	    long buf;
-
-	    real_to_target (&buf, &d, TYPE_MODE (type));
 	    real_to_decimal (string, &d, sizeof (string), 0, 1);
-	    fprintf (file, "float32(%#08lx)\t/* %s */",
-		     buf, string);
+	    switch(TYPE_MODE (type))
+	      {
+	      case SFmode:
+		REAL_VALUE_TO_TARGET_SINGLE (d, buf);
+		fprintf (file, "float32(0x%.8x)\t/* %s */", buf, string);
+		break;
+	      default:
+		gcc_unreachable();
+	      }
 	  }
 	  break;
 	case CIL_LDC_R8:
@@ -1513,11 +1518,16 @@ emit_cil_stmt (FILE *file, const_cil_stmt stmt)
 	    tree type = TYPE_MAIN_VARIANT (TREE_TYPE (cil_cst (stmt)));
 	    char string[100];
 	    long buf[2];
-
-	    real_to_target (buf, &d, TYPE_MODE (type));
 	    real_to_decimal (string, &d, sizeof (string), 0, 1);
-	    fprintf (file, "float64(%#08lx%08lx)\t/* %s */",
-		     buf[1], buf[0], string);
+	    switch(TYPE_MODE (type))
+	      {
+	      case DFmode:
+		REAL_VALUE_TO_TARGET_DOUBLE (d, buf);
+		fprintf (file, "float64(0x%.8x%.8x) /* %s */", buf[1], buf[0], string);
+		break;
+	      default:
+		gcc_unreachable();
+	      }
 	  }
 	  break;
 
