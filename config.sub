@@ -313,6 +313,9 @@ case $basic_machine in
 	c6x)
 		basic_machine=tic6x-unknown
 		;;
+	cil32)
+		basic_machine=$basic_machine-unknown
+		;;
 	m6811 | m68hc11 | m6812 | m68hc12 | picochip)
 		# Motorola 68HC11/12.
 		basic_machine=$basic_machine-unknown
@@ -401,6 +404,8 @@ case $basic_machine in
 	| xstormy16-* | xtensa*-* \
 	| ymp-* \
 	| z8k-* | z80-*)
+		;;
+	cil32-*)
 		;;
 	# Recognize the basic CPU types without company name, with glob match.
 	xtensa*)

@@ -25752,6 +25752,12 @@ _ACEOF
 
 fi
 
+case "$target" in
+   cil32-*-*)
+       tm_defines="${tm_defines} MONO_BINUTILS=1"
+   ;;
+esac
+
 if test x$host != x$target || test "x$TARGET_SYSTEM_ROOT" != x; then
   if test "x$with_headers" != x; then
     target_header_dir=$with_headers

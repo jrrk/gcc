@@ -364,6 +364,8 @@ enum omp_clause_code
    See the accessor macros, defined below, for documentation of the
    fields.  */
 
+union tree_ann_d;
+
 struct GTY(()) tree_base {
   ENUM_BITFIELD(tree_code) code : 16;
 
@@ -405,6 +407,9 @@ struct GTY(()) tree_base {
      in tree_base instead of tree_type is to save space.  The size of the
      field must be large enough to hold addr_space_t values.  */
   unsigned address_space : 8;
+
+  union tree_ann_d *ann;
+
 };
 
 struct GTY(()) tree_common {

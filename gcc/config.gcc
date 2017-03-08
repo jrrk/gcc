@@ -323,6 +323,9 @@ avr-*-*)
 bfin*-*)
 	cpu_type=bfin
 	;;
+cil32-*-*)
+	cpu_type=cil32
+	;;
 crisv32-*)
 	cpu_type=cris
 	;;
@@ -959,6 +962,13 @@ bfin*-*)
 	tmake_file=bfin/t-bfin
 	use_collect2=no
 	use_gcc_stdint=wrap
+	;;
+cil32-*-*)
+	gas=no
+	use_collect2=no
+	extra_objs="bb-layout.o bit-stream.o cil-dump.o cil-lower.o cil-refs.o cil-stack.o cil-stmt.o emit-cil.o emit-hints.o gimple-to-cil.o missing-protos.o peephole.o remove-convs.o remove-temps.o simp-cond.o tree-simp-cil-early.o cil-builtins.o"
+	tm_file="${tm_file} cil32/cil-types.h"
+	target_gtfiles="\$(srcdir)/config/cil32/cil-builtins.c \$(srcdir)/config/cil32/cil-refs.c \$(srcdir)/config/cil32/cil-stmt.c"
 	;;
 crisv32-*-elf | crisv32-*-none)
 	tm_file="dbxelf.h elfos.h newlib-stdint.h ${tm_file}"

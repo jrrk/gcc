@@ -133,6 +133,28 @@ struct GTY(()) ptr_info_def
   unsigned int misalign;
 };
 
+enum tree_ann_type { TREE_ANN_COMMON, VAR_ANN, FUNCTION_ANN };
+
+struct GTY(()) tree_ann_common_d
+{
+  /* Annotation type.  */
+  enum tree_ann_type type;
+
+  /* Record EH region number into a statement tree created during RTL
+     expansion (see gimple_to_tree).  */
+  int rn;
+
+  /* Auxiliary info specific to a pass.  At all times, this
+     should either point to valid data or be NULL.  */ 
+  PTR GTY ((skip (""))) aux; 
+
+  /* The value handle for this expression.  Used by GVN-PRE.  */
+  tree GTY((skip)) value_handle;
+
+  /* Pointer to original GIMPLE statement.  Used during RTL expansion
+     (see gimple_to_tree).  */
+  gimple stmt;
+};
 
 /* It is advantageous to avoid things like life analysis for variables which
    do not need PHI nodes.  This enum describes whether or not a particular
@@ -160,7 +182,9 @@ enum need_phi_state {
 
 
 struct GTY(()) var_ann_d {
-  /* Used when building base variable structures in a var_map.  */
+    struct tree_ann_common_d common;
+
+/* Used when building base variable structures in a var_map.  */
   unsigned base_var_processed : 1;
 
   /* Nonzero if this variable was used after SSA optimizations were
@@ -184,6 +208,10 @@ struct GTY(()) var_ann_d {
   tree current_def;
 };
 
+struct GTY(()) function_ann_d
+{
+  struct tree_ann_common_d common;
+};
 
 /* Immediate use lists are used to directly access all uses for an SSA
    name and get pointers to the statement for each use.
@@ -277,8 +305,14 @@ typedef struct immediate_use_iterator_d
        !end_imm_use_on_stmt_p (&(ITER));			\
        (void) ((DEST) = next_imm_use_on_stmt (&(ITER))))
 
+union GTY((desc ("ann_type ((tree_ann_t)&%h)"))) tree_ann_d
+{
+  struct tree_ann_common_d GTY((tag ("TREE_ANN_COMMON"))) common;
+  struct var_ann_d GTY((tag ("VAR_ANN"))) vdecl;
+  struct function_ann_d GTY((tag ("FUNCTION_ANN"))) fdecl;
+};
 
-
+typedef union tree_ann_d *tree_ann_t;
 typedef struct var_ann_d *var_ann_t;
 
 static inline var_ann_t var_ann (const_tree);

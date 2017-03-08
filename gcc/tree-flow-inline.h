@@ -176,6 +176,13 @@ inc_gimple_stmt_max_uid (struct function *fn)
   return fn->last_stmt_uid++;
 }
 
+/* Return the annotation type for annotation ANN.  */
+static inline enum tree_ann_type
+ann_type (tree_ann_t ann)
+{
+  return ann->common.type;
+}
+
 /* Return the line number for EXPR, or return -1 if we have no line
    number information for it.  */
 static inline int
